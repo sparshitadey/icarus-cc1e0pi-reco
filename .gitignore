@@ -1,0 +1,12 @@
+# ACLiC build artifacts
+src/*.so
+src/*.d
+src/*_C_*
+src/*.pcm
+
+# ROOT output files
+output/
+
+# Editor/system
+.DS_Store
+*.swp

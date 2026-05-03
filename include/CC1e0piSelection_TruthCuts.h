@@ -1,0 +1,229 @@
+#pragma once
+
+#include "sbnana/CAFAna/Core/Var.h"
+#include "sbnanaobj/StandardRecord/Proxy/FwdDeclare.h"
+#include "sbnanaobj/StandardRecord/Proxy/SRProxy.h"
+
+#include <vector>
+#include <math.h>
+
+// local — must be included after all Vars and Cuts headers
+#include "Config.h"
+#include "CC1e0piSelection_Cuts.h"
+
+namespace ana {
+
+    // =========================================================================
+    // Signal definition at the MCNeutrino level
+    // Used in Efficiency.h SpillMultiVar loops
+    // Thresholds come from Config.h
+    // =========================================================================
+    bool kIsTrueCC1e0pi(const caf::Proxy<caf::SRTrueInteraction>& nu) {
+
+        bool kTrueNueCC = (nu.iscc) &&
+                          (abs(nu.pdg) == 12) &&
+                          kIsInFV(nu.position.x, nu.position.y, nu.position.z);
+
+        int nPrimElectron = 0, nVisProtons = 0, nVisOther = 0;
+
+        for (int ip(0); ip < nu.nprim; ++ip) {
+
+            // electron
+            if (abs(nu.prim[ip].pdg) == 11) {
+                if ((nu.prim[ip].startE - nu.prim[ip].endE) > THRESHOLD_E)
+                    ++nPrimElectron;
+            }
+
+            // proton
+            else if (nu.prim[ip].pdg == 2212) {
+                if (((nu.prim[ip].startE - nu.prim[ip].endE) > VISIBILTY_THRESHOLD_P) &&
+                    kIsInContained(nu.prim[ip].end.x, nu.prim[ip].end.y, nu.prim[ip].end.z))
+                    ++nVisProtons;
+            }
+
+            // pi0 — always visible
+            else if (nu.prim[ip].pdg == 111) {
+                ++nVisOther;
+            }
+
+            // neutrons — ignored
+            else if (nu.prim[ip].pdg == 2112) {
+                continue;
+            }
+
+            // anything else above pion threshold
+            else {
+                if ((nu.prim[ip].startE - nu.prim[ip].endE) >= VISIBILTY_THRESHOLD_PI)
+                    ++nVisOther;
+            }
+        }
+
+        return kTrueNueCC && (nPrimElectron == 1) && (nVisProtons > 0) && (nVisOther == 0);
+    }
+
+    // =========================================================================
+    // Signal definition at the slice level
+    // =========================================================================
+    const Cut kTrueCC1e0pi([](const caf::SRSliceProxy* slc) {
+
+        if (std::isnan(slc->truth.position.x) ||
+            std::isnan(slc->truth.position.y) ||
+            std::isnan(slc->truth.position.z)) return false;
+
+        bool kTrueNueCC = (slc->truth.index >= 0) &&
+                          (slc->truth.iscc) &&
+                          (abs(slc->truth.pdg) == 12) &&
+                          kIsInFV(slc->truth.position.x, slc->truth.position.y, slc->truth.position.z);
+
+        int nPrimElectron = 0, nVisProtons = 0, nVisOther = 0;
+
+        for (int ip(0); ip < slc->truth.nprim; ++ip) {
+
+            // electron
+            if (abs(slc->truth.prim[ip].pdg) == 11) {
+                if ((slc->truth.prim[ip].startE - slc->truth.prim[ip].endE) > THRESHOLD_E)
+                    ++nPrimElectron;
+            }
+
+            // proton
+            else if (slc->truth.prim[ip].pdg == 2212) {
+                if (((slc->truth.prim[ip].startE - slc->truth.prim[ip].endE) > VISIBILTY_THRESHOLD_P) &&
+                    kIsInContained(slc->truth.prim[ip].end.x, slc->truth.prim[ip].end.y, slc->truth.prim[ip].end.z))
+                    ++nVisProtons;
+            }
+
+            // pi0 — always visible
+            else if (slc->truth.prim[ip].pdg == 111) {
+                ++nVisOther;
+            }
+
+            // neutrons — ignored
+            else if (slc->truth.prim[ip].pdg == 2112) {
+                continue;
+            }
+
+            // anything else above pion threshold
+            else {
+                if ((slc->truth.prim[ip].startE - slc->truth.prim[ip].endE) >= VISIBILTY_THRESHOLD_PI)
+                    ++nVisOther;
+            }
+        }
+
+        return kTrueNueCC && (nPrimElectron == 1) && (nVisProtons > 0) && (nVisOther == 0);
+    });
+
+    // =========================================================================
+    // Truth-level slice classification
+    // =========================================================================
+    const Cut kIsNuOOFV([](const caf::SRSliceProxy* slc) {
+        if (std::isnan(slc->truth.position.x) || std::isnan(slc->truth.position.y) || std::isnan(slc->truth.position.z)) return false;
+        return (slc->truth.index >= 0) &&
+               !kIsInFV(slc->truth.position.x, slc->truth.position.y, slc->truth.position.z);
+    });
+
+    const Cut kIsNuinFV([](const caf::SRSliceProxy* slc) {
+        if (std::isnan(slc->truth.position.x) || std::isnan(slc->truth.position.y) || std::isnan(slc->truth.position.z)) return false;
+        return (slc->truth.index >= 0) &&
+               kIsInFV(slc->truth.position.x, slc->truth.position.y, slc->truth.position.z);
+    });
+
+    const Cut kIsCosmic([](const caf::SRSliceProxy* slc) {
+        return (slc->truth.index < 0);
+    });
+
+    const Cut kIsNue([](const caf::SRSliceProxy* slc) {
+        return (slc->truth.index >= 0) && (abs(slc->truth.pdg) == 12);
+    });
+
+    const Cut kIsNotNue([](const caf::SRSliceProxy* slc) {
+        return !(abs(slc->truth.pdg) == 12);
+    });
+
+    const Cut kIsNuMu([](const caf::SRSliceProxy* slc) {
+        return (slc->truth.index >= 0) && (abs(slc->truth.pdg) == 14);
+    });
+
+    const Cut kIsCC([](const caf::SRSliceProxy* slc) {
+        return (slc->truth.index >= 0) && (slc->truth.iscc);
+    });
+
+    const Cut kIsNC([](const caf::SRSliceProxy* slc) {
+        return (slc->truth.index >= 0) && (slc->truth.isnc);
+    });
+
+    const Cut kIsTherePi0([](const caf::SRSliceProxy* slc) {
+        int NPi0 = 0;
+        for (int ip(0); ip < slc->truth.nprim; ++ip)
+            if (slc->truth.prim[ip].pdg == 111) ++NPi0;
+        return (slc->truth.index >= 0) && (NPi0 > 0);
+    });
+
+    const Cut kTrueVertexInFV([](const caf::SRSliceProxy* slc) {
+        if (std::isnan(slc->truth.position.x) || std::isnan(slc->truth.position.y) || std::isnan(slc->truth.position.z)) return false;
+        return (slc->truth.index >= 0) &&
+               kIsInFV(slc->truth.position.x, slc->truth.position.y, slc->truth.position.z);
+    });
+
+    // =========================================================================
+    // GENIE interaction mode cuts
+    // =========================================================================
+    const Cut kTrueQE ([](const caf::SRSliceProxy* slc) { return slc->truth.genie_mode == caf::kQE;  });
+    const Cut kTrueDIS([](const caf::SRSliceProxy* slc) { return slc->truth.genie_mode == caf::kDIS; });
+    const Cut kTrueRes([](const caf::SRSliceProxy* slc) { return slc->truth.genie_mode == caf::kRes; });
+    const Cut kTrueCoh([](const caf::SRSliceProxy* slc) { return slc->truth.genie_mode == caf::kCoh; });
+    const Cut kTrueMEC([](const caf::SRSliceProxy* slc) { return slc->truth.genie_mode == caf::kMEC; });
+
+    // =========================================================================
+    // Truth PDG of reconstructed leading shower
+    // =========================================================================
+    const Cut kIsLargestShower_E ([](const caf::SRSliceProxy* slc) { const int p = kLargestRecoShower_TruePdg(slc); if (p == -5) return false; return abs(p) == 11;   });
+    const Cut kIsLargestShower_Mu([](const caf::SRSliceProxy* slc) { const int p = kLargestRecoShower_TruePdg(slc); if (p == -5) return false; return abs(p) == 13;   });
+    const Cut kIsLargestShower_Pi([](const caf::SRSliceProxy* slc) { const int p = kLargestRecoShower_TruePdg(slc); if (p == -5) return false; return abs(p) == 211;  });
+    const Cut kIsLargestShower_Ph([](const caf::SRSliceProxy* slc) { const int p = kLargestRecoShower_TruePdg(slc); if (p == -5) return false; return abs(p) == 22;   });
+    const Cut kIsLargestShower_P ([](const caf::SRSliceProxy* slc) { const int p = kLargestRecoShower_TruePdg(slc); if (p == -5) return false; return abs(p) == 2212; });
+
+    // =========================================================================
+    // Spill-level utility cuts
+    // =========================================================================
+    const SpillCut kNoPileUp([](const caf::SRSpillProxy* sr) {
+        return (sr->mc.nnu == 1);
+    });
+
+    // =========================================================================
+    // Interaction type vectors for stacked plots
+    // =========================================================================
+    std::vector<SelDef> InteractionTypes = {
+        {"selected",    "",                   kNoCut,                                                                          kBlack},
+        {"signal",      "CC1e^{#pm}0#pi",     kTrueCC1e0pi,                                                                   kRed-7},
+        {"othernuecc",  "#nu_{e}CC",          !kTrueCC1e0pi && kIsNue   && kIsCC && kTrueVertexInFV,                          kOrange-3},
+        {"nuenc",       "#nu_{e}NC",          !kTrueCC1e0pi && kIsNue   && kIsNC && kTrueVertexInFV,                          kGreen-2},
+        {"numucc_pi0",  "#nu_{#mu}CC#pi^{0}", !kTrueCC1e0pi && kIsNuMu  && kIsCC && kIsTherePi0  && kTrueVertexInFV,          kMagenta-10},
+        {"numucc",      "#nu_{#mu}CC",        !kTrueCC1e0pi && kIsNuMu  && kIsCC && !kIsTherePi0 && kTrueVertexInFV,          kMagenta-3},
+        {"numunc",      "#nu_{#mu}NC",        !kTrueCC1e0pi && kIsNuMu  && kIsNC && kTrueVertexInFV,                          kPink+1},
+        {"oofvnu",      "OoFV",               !kTrueCC1e0pi && kIsNuOOFV,                                                     kCyan-9},
+        {"cosmic",      "Cosmic",             !kTrueCC1e0pi && kIsCosmic,                                                     kAzure-3},
+    };
+
+    std::vector<SelDef> GENIETypes = {
+        {"selected",      "",               kNoCut,                                                   kBlack},
+        {"signalqe",      "Signal - QE",    kTrueCC1e0pi && kTrueQE,                                  kRed-7},
+        {"signalmec",     "Signal - MEC",   kTrueCC1e0pi && kTrueMEC,                                 kOrange-3},
+        {"signalres",     "Signal - RES",   kTrueCC1e0pi && kTrueRes,                                 kGreen-2},
+        {"signalother",   "Signal - Other", kTrueCC1e0pi && !kTrueQE && !kTrueMEC && !kTrueRes,       kGreen-4},
+        {"otherqe",       "QE",             !kTrueCC1e0pi && kTrueQE,                                 kMagenta-10},
+        {"othermec",      "MEC",            !kTrueCC1e0pi && kTrueMEC,                                kMagenta-3},
+        {"otherres",      "RES",            !kTrueCC1e0pi && kTrueRes,                                kPink+1},
+        {"otherother",    "Other",          !kTrueCC1e0pi && !kTrueQE && !kTrueMEC && !kTrueRes,      kCyan-9},
+    };
+
+    std::vector<SelDef> LeadingShowerParticleTypes = {
+        {"selected",  "",           kNoCut,                                                                                                                    kBlack},
+        {"electron",  "e^{#pm}",   kIsLargestShower_E,                                                                                                        kRed-7},
+        {"photon",    "#gamma",     kIsLargestShower_Ph,                                                                                                       kOrange-3},
+        {"muon",      "#mu^{#pm}", kIsLargestShower_Mu,                                                                                                        kGreen-2},
+        {"pion",      "#pi^{#pm}", kIsLargestShower_Pi,                                                                                                        kMagenta-10},
+        {"proton",    "p",          kIsLargestShower_P,                                                                                                        kMagenta-3},
+        {"other",     "Other",      !kIsLargestShower_E && !kIsLargestShower_Ph && !kIsLargestShower_Mu && !kIsLargestShower_Pi && !kIsLargestShower_P,        kPink+1},
+    };
+
+} // namespace ana
