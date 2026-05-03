@@ -31,7 +31,7 @@
 | Pions | 0 visible (KE < 30 MeV threshold) |
 | Vertex | Inside fiducial volume |
 
-> **Note on cuts:** The initial cuts in this first version are those developed by Riccardo Triozzi and collaborators for a Pandora-based NuMI νe CC selection. They serve here as an apples-to-apples diagnostic baseline for BNB before subsequent tuning. Future versions will focus on BNB-optimised cuts.
+> **Note on cuts:** The initial cuts in this first version are those developed by [Riccardo Triozzi](https://github.com/rtriozzi) and collaborators for a Pandora-based NuMI νe CC selection. They serve here as an apples-to-apples diagnostic baseline for BNB before subsequent tuning. Future versions will focus on BNB-optimised cuts.
 
 ---
 
