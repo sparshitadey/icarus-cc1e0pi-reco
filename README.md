@@ -22,7 +22,7 @@
 
 ## ⚛️ Physics Signal Definition
 
-**CC1eNp0π** — charged-current electron neutrino interaction with:
+**CC1eNp0pi** — charged-current electron neutrino interaction with:
 
 | Particle | Requirement |
 |----------|-------------|
