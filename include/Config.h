@@ -9,7 +9,7 @@
 // Comment out USE_NUGRAPH to use legacy pandora track score + chi2 PID
 // Uncomment to use NuGraph2 semantic classification
 // -----------------------------------------------------------------------------
-// #define USE_NUGRAPH
+#define USE_NUGRAPH
 
 // -----------------------------------------------------------------------------
 // Energy thresholds (nominal values)

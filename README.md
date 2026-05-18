@@ -112,7 +112,18 @@ htgettoken -a htvaultprod.fnal.gov -i icarus
 
 #### Option B — icaruscode `v10_06_00_04p04` *(2D deconvolution)*
 
-> 🚧 *Coming soon*
+```bash
+sh /exp/$(id -ng)/data/users/vito/podman/start_SL7dev_jsl.sh
+source /cvmfs/icarus.opensciencegrid.org/products/icarus/setup_icarus.sh
+setup icaruscode v10_06_00_04p04 -q e26:prof
+cd /exp/icarus/app/users/sdey2/dev/dev_v10_06_00_04p04_nugraph
+source localProducts*/setup && mrbslp
+cd /exp/icarus/app/users/sdey2/NuGraphReco/sbnana_v04p04
+source localProducts*/setup
+setup sbnana v10_01_01 -q e26:prof
+```
+
+> ⚠️ A locally built sbnana is required for v04p04 CAFs. The UPS version (`v10_01_01`) is compiled for an older kernel (`Linux64bit+3.10-2.17`) and causes heap corruption when reading v04p04 flat CAFs. The local build at `/exp/icarus/app/users/sdey2/NuGraphReco/sbnana_v04p04` compiles the same tag natively for `Linux64bit+5.14-2.17`.
 
 ---
 
@@ -255,6 +266,9 @@ All thresholds live in `Config.h` — change them there and recompile:
 
 This framework was developed against flat CAFs produced in **`v10_06_00_01p01`** (the NuGraph2-enabled icaruscode version). However, flat CAF branch names and structure are highly stable across icaruscode production versions — a systematic comparison across three versions confirms this.
 
+### v10_06_00_04p04 compatibility note
+All NuGraph2 variables (`rec.slc.ng_plane.*`, `rec.slc.reco.pfp.ngscore.*`, `rec.slc.ng_filt_pass_frac`) are confirmed present in v04p04 flat CAFs. Running with `USE_NUGRAPH` defined is fully supported against v04p04 outputs, provided the local sbnana build described in Option B above is used.
+
 ### Branch overlap across icaruscode versions
 
 A Jaccard similarity analysis of tree-qualified branch names across `v10_06_00_01p01`, `v10_06_00_04p04`, and `v10_06_00_06p03` shows **96–97.7% overlap** between versions:
@@ -270,7 +284,7 @@ The pairwise branch count comparison confirms that the vast majority of branches
 ### Implications
 
 - Variable names and structure in flat CAFs are highly stable across production versions — empirically, changes are at the **<4% level** in variable names between versions checked
-- The first full BNB production run uses official CAFs from **`v10_06_00_06p03`**, and the macros compile and run correctly against those files
+- The first full BNB production run uses official CAFs from **`v10_06_00_06p03`**, and the macros compile and run correctly against those files 
 - **Pandora-only analysis** (i.e. `USE_NUGRAPH` commented out) works with standard flat CAFs from any production version — no NuGraph branches are required
 
 ---

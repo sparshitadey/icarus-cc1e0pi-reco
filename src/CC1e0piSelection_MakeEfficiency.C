@@ -174,7 +174,8 @@ void DrawEfficiencySummary(const std::string& canvasName,
 void CC1e0piSelection_MakeEfficiency()
 {
     //const std::string listFile = "/exp/icarus/app/users/csaia/bnb_nominalflux_caf_small.list"; //BNB MC file list (500 files ~ 10k events) in v10_06_00_06p03 used for debug-only (too low stats for reliable results --> huge error bars)
-    const std::string listFile = "/exp/icarus/app/users/csaia/bnb_nominalflux_caf.list"; //BNB MC file list (All files!) in v10_06_00_06p03 
+    //const std::string listFile = "/exp/icarus/app/users/csaia/bnb_nominalflux_caf.list"; //BNB MC file list (All files!) in v10_06_00_06p03 
+    const std::string listFile = "/exp/icarus/app/users/sdey2/fileLists/BNB_NuGraph_v10_06_00_04p04_flatcafs_Tester.list";
     std::vector<std::string> fileList;
     std::ifstream fin(listFile);
     std::string line;
@@ -255,7 +256,7 @@ void CC1e0piSelection_MakeEfficiency()
     gROOT->SetBatch(kTRUE);
     SetPrettyStyle();
 
-    TFile FOut("../output/root/CC1e0piSelection_EfficiencyTest.root", "RECREATE");
+    TFile FOut("../output/root/CC1e0piSelection_EfficiencyTest_v10_06_00_04p04_Tester.root", "RECREATE");
 
     // hTrueSignal
     const double TargetPOT = sTrueNeutrinoEnergy->POT();
