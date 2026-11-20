@@ -195,4 +195,35 @@ namespace ana {
         });
     }
 
+    // ---- Event-level truth ntuple: one row per true CC1e0pi signal neutrino ----
+    // Lets us find signal neutrinos that never produced a slice (no row in ntuple/ntuple).
+    #define TRUTH_NU_VAR(NAME, EXPR)                                                         \
+      const SpillMultiVar NAME([](const caf::SRSpillProxy* sr) -> std::vector<double> {      \
+          std::vector<double> v;                                                             \
+          for (int i = 0; i < (int)sr->mc.nu.size(); ++i) {                                  \
+              auto const& nu = sr->mc.nu[i];                                                 \
+              if (!kIsTrueCC1e0pi(nu)) continue;                                             \
+              v.push_back(EXPR);                                                             \
+          }                                                                                  \
+      return v; });
+
+    namespace CC1e0pi_TruthNtuple {
+      TRUTH_NU_VAR(kRun,    sr->hdr.run)
+      TRUTH_NU_VAR(kSubrun, sr->hdr.subrun)
+      TRUTH_NU_VAR(kEvt,    sr->hdr.evt)
+      TRUTH_NU_VAR(kNuIdx,  nu.index)
+      TRUTH_NU_VAR(kNuE,    nu.E)
+      TRUTH_NU_VAR(kVtxX,   nu.position.x)
+      TRUTH_NU_VAR(kVtxY,   nu.position.y)
+      TRUTH_NU_VAR(kVtxZ,   nu.position.z)
+      TRUTH_NU_VAR(kElecKE, [&]{ for (int ip = 0; ip < (int)nu.nprim; ++ip)
+                                   if (abs(nu.prim[ip].pdg) == 11)
+                                       return (double)(nu.prim[ip].startE - nu.prim[ip].endE);
+                                 return -5.; }())
+      TRUTH_NU_VAR(kNVisP,  [&]{ int n = 0; for (int ip = 0; ip < (int)nu.nprim; ++ip)
+                                   if (nu.prim[ip].pdg == 2212 && (nu.prim[ip].startE - nu.prim[ip].endE) > 0.05) ++n;
+                                 return (double)n; }())
+    }
+    #undef TRUTH_NU_VAR
+
 } // namespace ana
