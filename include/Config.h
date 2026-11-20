@@ -57,3 +57,13 @@ const double FV_MARGIN_Z_UP = 30.0;
 const double FV_MARGIN_Z_DN = 50.0;
 
 const double CONT_MARGIN = 5.0;
+
+// -----------------------------------------------------------------------------
+// Ntuple content
+// true  : ntuple keeps slices that FAIL the flash match (only not-clear-cosmic +
+//         vertex-in-FV are required). Use pass_flash_match / pass_trig_flash_match
+//         in Python to apply FM, so presel and FM are visible from the start.
+// false : legacy behaviour, flash match applied when the ntuple is filled
+//         (smaller output, but presel and FM rows cannot be reproduced in Python)
+// -----------------------------------------------------------------------------
+const bool NTUPLE_KEEP_PRE_FLASH = true;

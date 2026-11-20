@@ -142,8 +142,11 @@ namespace ana {
         kNSelectedProtons && kNoOtherParticle && kMuonVeto;
 
     // loose pre-selection for ntuple output
-    const Cut kNtuplePreSelection =
-        kNotClearCosmic && kVertexInFV && kFlashMatch;
+    // NTUPLE_KEEP_PRE_FLASH (Config.h) decides whether flash match is applied here
+    // or left to the pass_flash_match / pass_trig_flash_match branches downstream
+    const Cut kNtuplePreSelection = NTUPLE_KEEP_PRE_FLASH
+        ? (kNotClearCosmic && kVertexInFV)
+        : (kNotClearCosmic && kVertexInFV && kFlashMatch);
 
     const Cut kPreSelection =
         kNotClearCosmic && kVertexInFV && kTrigFlashMatch && kLargestRecoShower_EnergyCut;
