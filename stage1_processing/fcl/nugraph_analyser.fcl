@@ -1,0 +1,27 @@
+# run_nugraph_analyzer.fcl  --  ICARUSNuGraphAnalyzer, CryoE only
+#   lar -c nugraph_analyser.fcl -s <stage1>.root -n 5
+# Output: hist_nugraph_analyser.root  ->  NuGraphAnaCryoE/NuGraphHitOutput
+#
+# Plain labels (no :redo): the file has a single process, so art resolves them.
+# CryoW omitted: this sample has ~0 NGMultiSliceCryoW hits.
+
+process_name: NGAna
+services: {
+  TFileService: { fileName: "hist_nugraph_analyser.root" }
+  message: { destinations: { LogStandardOut: { type: "cout" threshold: "INFO" } } }
+  # @table::icarus_common_services   # uncomment if Geometry (hit->WireID()) is missing
+}
+source: { module_type: RootInput  maxEvents: -1 }
+
+physics: {
+  analyzers: {
+    NuGraphAnaCryoE: {
+      module_type:  ICARUSNuGraphAnalyzer
+      NuGraphLabel: "NGMultiSliceCryoE"
+      SliceLabel:   "NCCSlicesCryoE"
+      PandoraLabel: "pandoraGausCryoE"
+    }
+  }
+  ana: [ NuGraphAnaCryoE ]
+  end_paths: [ ana ]
+}

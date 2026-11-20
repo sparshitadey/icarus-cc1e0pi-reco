@@ -1,0 +1,50 @@
+# run_nugraph_analyzer.fcl  --  ICARUSNuGraphAnalyzer (truth-inclusive), CryoE only
+#   lar -c nugraph_analyser_wtruth_v2.fcl -s <stage1>.root -n 5
+# Output: hist_nugraph_analyser_truth_trainingsample.root  ->  NuGraphAnaCryoE/NuGraphHitOutput
+#
+# Plain labels (no :redo): the file has a single process, so art resolves them.
+# CryoW omitted: this sample has ~0 NGMultiSliceCryoW hits.
+
+#include "services_common_icarus.fcl"
+#include "services_icarus_simulation.fcl"
+
+process_name: NGAna
+services: {
+  TFileService: { fileName: "hist_nugraph_analyser_truth_bnboverlay_500.root" }
+  message: { destinations: { LogStandardOut: { type: "cout" threshold: "INFO" } } }
+  @table::icarus_common_services      # needed for Geometry (hit->WireID()) and backtracking
+  @table::icarus_backtracking_services # BackTrackerService, ParticleInventoryService
+  ParticleInventoryService: {
+    ParticleInventory: {
+      EveIdCalculator: "EmEveIdCalculator"
+      G4ModuleLabel: "largeant"
+      OverrideRealData: true
+    }
+  }
+}
+source: { module_type: RootInput  maxEvents: -1 }
+
+physics: {
+  analyzers: {
+    NuGraphAnaCryoE: {
+      module_type:  ICARUSNuGraphAnalyzer
+      NuGraphLabel: "NGMultiSliceCryoE"
+      SliceLabel:   "NCCSlicesCryoE"
+      PandoraLabel: "pandoraGausCryoE"
+      TruthLabel:   "generator"
+      HitTruthAssnsLabel: "mcassociationsGausCryoE"
+    }
+  }
+  ana: [ NuGraphAnaCryoE ]
+  end_paths: [ ana ]
+}
+
+services.BackTrackerService.BackTracker.G4ModuleLabel: "largeant"
+services.BackTrackerService.BackTracker.SimChannelModuleLabel: "merge"
+
+# One of the @table:: services above (likely icarus_common_services)
+# defines its own TFileService with a SAM-style auto-generated name
+# (%ifb_%tc_%p.root), which silently overrides the literal fileName set
+# earlier in the services block -- FHiCL's last-assignment-wins rule for
+# same-key entries. Force it back explicitly, after all table expansions.
+services.TFileService.fileName: "hist_nugraph_analyser_truth_bnboverlay_500.root"

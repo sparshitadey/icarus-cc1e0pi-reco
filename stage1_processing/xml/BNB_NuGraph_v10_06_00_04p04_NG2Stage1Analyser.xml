@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<!-- NuGraph Production: stage0 ROOT -> stage1 (NuGraphReco) -> flat CAF
+     Release:  v10_06_00_04p04
+     Re-run:   5000 jobs, full BNB MCOverlays2025A list
+     stage1 -> scratch (bulky intermediate); caf -> persistent (kept)
+     nugraphana -> truth-inclusive NuGraph hit-level analysis (added)
+     Author:   sdey2
+-->
+<!DOCTYPE project [
+<!ENTITY release        "v10_06_00_04p04" >
+<!ENTITY file_type      "mc"  >
+<!ENTITY run_type       "bnb"   >
+<!ENTITY name           "BNB_NuGraph_v10_06_00_04p04_test">
+<!ENTITY nevents        "100000">
+<!ENTITY scratch_dir    "/pnfs/icarus/scratch/users/sdey2/v10_06_00_04p04/nugraph">
+<!ENTITY persistent_dir "/pnfs/icarus/persistent/users/sdey2/v10_06_00_04p04/nugraph">
+<!ENTITY resilient_dir  "/pnfs/icarus/resilient/users/sdey2">
+]>
+<job>
+<project name="&name;">
+<!-- Project size -->
+<numevents>&nevents;</numevents>
+<!-- Operating System -->
+<os>SL7</os>
+<!-- Batch resources -->
+<resource>DEDICATED,OPPORTUNISTIC</resource>
+<larsoft>
+<tag>&release;</tag>
+<qual>e26:prof</qual>
+<local>&resilient_dir;/tarballs/icaruscode-workingarea-v10_06_00_04p04_nugraphTruth.tar.gz</local>
+</larsoft>
+
+<!-- ============================================================
+         STAGE 1: stage0 ROOT -> stage1 NuGraph reconstruction
+         Output to SCRATCH (bulky intermediate, OK if purged later)
+         ============================================================ -->
+<stage name="stage1">
+<fcl>stage1_run2_icarus_overlay_NuGraphReco.fcl</fcl>
+<outdir>&scratch_dir;/&name;/stage1/5000</outdir>
+<workdir>&resilient_dir;/workdirs/&name;/stage1/5000</workdir>
+<logdir>&scratch_dir;/&name;/stage1/5000</logdir>
+<bookdir>&scratch_dir;/&name;/stage1/5000</bookdir>
+<numjobs>5000</numjobs>
+<maxfilesperjob>1</maxfilesperjob>
+<inputlist>/exp/icarus/app/users/sdey2/fileLists/BNBstage0_v10_06_00_04p04_MCOverlays2025A.list</inputlist>
+<datatier>reconstructed</datatier>
+<memory>12000</memory>
+<disk>100GB</disk>
+<jobsub>--expected-lifetime=12h --generate-email-summary -l +SingularityImage="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest" --append_condor_requirements='(TARGET.HAS_SINGULARITY=?=true)'</jobsub>
+</stage>
+
+<!-- ============================================================
+         CAF STAGE: stage1 ROOT -> flat CAF
+         Output to SCRATCH
+         After stage1 completes, run:
+           project.py -xml <this_file> -stage stage1 -check
+         which generates:
+           &scratch_dir;/&name;/stage1/5000/files.list
+         (already referenced as the caf and nugraphana inputlist below)
+         ============================================================
+-->
+
+<stage name="caf">
+<fcl>cafmakerjob_icarus_detsim2d_systtools_and_fluxwgt_overlay_NuGraphReco.fcl</fcl>
+<outdir>&scratch_dir;/&name;/caf/5000</outdir>
+<workdir>&resilient_dir;/workdirs/&name;/caf/5000</workdir>
+<logdir>&scratch_dir;/&name;/caf/5000</logdir>
+<bookdir>&scratch_dir;/&name;/caf/5000</bookdir>
+<numjobs>5000</numjobs>
+<maxfilesperjob>1</maxfilesperjob>
+<inputlist>&scratch_dir;/&name;/stage1/5000/files.list</inputlist>
+<datatier>reconstructed</datatier>
+<memory>10000</memory>
+<disk>50GB</disk>
+<jobsub>--expected-lifetime=12h --generate-email-summary -l +SingularityImage="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest" --append_condor_requirements='(TARGET.HAS_SINGULARITY=?=true)'</jobsub>
+</stage>
+
+<!-- ============================================================
+         NUGRAPHANA STAGE: stage1 ROOT -> truth-inclusive NuGraph
+         hit-level analysis (ICARUSNuGraphAnalyzer, HitTruthAssnsLabel
+         set for BNB+overlay truth matching - see nugraph_analyser_wtruth_v2.fcl)
+         Output to SCRATCH
+
+         IMPORTANT: the &resilient_dir;/tarballs/...nugraph.tar.gz tarball
+         above must be rebuilt (make_tarball.sh) AFTER the HitTruthAssnsLabel
+         fix, or this stage will silently run the OLD analyzer - same
+         failure mode as the 0%-truth-match issue already chased down once.
+
+         Reuses the same stage1/5000/files.list the caf stage already
+         consumes - no separate - check needed before this.
+         ============================================================ -->
+
+<stage name="nugraphana">
+<fcl>nugraph_analyser_wtruth_v2.fcl</fcl>
+<outdir>&scratch_dir;/&name;/nugraphana/5000</outdir>
+<workdir>&resilient_dir;/workdirs/&name;/nugraphana/5000</workdir>
+<logdir>&scratch_dir;/&name;/nugraphana/5000</logdir>
+<bookdir>&scratch_dir;/&name;/nugraphana/5000</bookdir>
+<numjobs>5000</numjobs>
+<maxfilesperjob>1</maxfilesperjob>
+<inputlist>&scratch_dir;/&name;/stage1/5000/files.list</inputlist>
+<datatier>ana</datatier>
+<memory>8000</memory>
+<disk>50GB</disk>
+<jobsub>--expected-lifetime=2h --generate-email-summary -l +SingularityImage="/cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7:latest" --append_condor_requirements='(TARGET.HAS_SINGULARITY=?=true)'</jobsub>
+</stage>
+
+<!-- file type -->
+<filetype>&file_type;</filetype>
+<!-- run type -->
+<runtype>&run_type;</runtype>
+</project>
+</job>
