@@ -280,13 +280,14 @@ void DrawPuritySummary(const std::string& canvasName,
 void DrawSelectionPlot(const PlotDef& plotDef,
                        const std::vector<Spectrum*>& spectra,
                        const std::vector<int>& cols,
-                       TDirectory* parentDir)
+                       TDirectory* parentDir,
+                       const std::string& legendTitle = "BNB CV")
 {
     const std::string& suffix = plotDef.suffix;
 
     TCanvas* c = new TCanvas(suffix.c_str(), suffix.c_str(), 1800, 1350);
     THStack* hs = new THStack(suffix.c_str(), plotDef.label.c_str());
-    TLegend* leg = new TLegend(0.65, 0.5, 0.85, 0.85, "BNB CV");
+    TLegend* leg = new TLegend(0.65, 0.5, 0.85, 0.85, legendTitle.c_str());
 
     const double TargetPOT = spectra[0]->POT();
     TH1* hAll = spectra[0]->ToTH1(TargetPOT);
@@ -357,8 +358,13 @@ void DrawSelectionPlot(const PlotDef& plotDef,
 void CC1e0piSelection_MakeAll()
 {
     //const std::string listFile = "/exp/icarus/app/users/csaia/bnb_nominalflux_caf_small.list"; //BNB MC file list (500 files ~ 10k events) in v10_06_00_06p03 used for debug-only (too low stats for reliable results --> huge error bars)
-    const std::string listFile = "/exp/icarus/app/users/csaia/bnb_nominalflux_caf.list"; //BNB MC file list (All files!) in v10_06_00_06p03 
-
+    //const std::string listFile = "/exp/icarus/app/users/csaia/bnb_nominalflux_caf.list"; //BNB MC file list (All files!) in v10_06_00_06p03 
+    //const std::string listFile = "/exp/icarus/app/users/sdey2/fileLists/BNB_NuGraph_v10_06_00_04p04_flatcafs_v2.list";
+    //const std::string listFile = "/exp/icarus/data/users/sdey2/NuGraphReco/cc1e0pi_v4_Nov26/input/v06p03_nue_standard_flatcaf.list";
+    //const std::string listFile = "/exp/icarus/data/users/sdey2/NuGraphReco/cc1e0pi_v4_Nov26/input/BNB_nue_v10_25_00_flatcaf.list";
+    //const std::string listFile = "/exp/icarus/data/users/sdey2/NuGraphReco/cc1e0pi_v4_Nov26/input/test2.list"; //test of the v10_25 with 2 files
+    const std::string listFile = "/exp/icarus/data/users/sdey2/NuGraphReco/ClaraModels/lists/caf_flat_ClaraAND_1114.list";
+    
     std::vector<std::string> fileList;
     std::ifstream fin(listFile);
     std::string line;
@@ -451,6 +457,27 @@ void CC1e0piSelection_MakeAll()
                 kNoSpillCut, kAutomaticSelection_NoTrigger && InteractionTypes[jSel].cut);
 
     // -------------------------------------------------------------------------
+    // Pre-cut stage spectra: same stacks, but at an earlier point in the cut flow
+    // Indices into SelectionSteps_NoTrigger: 0 = presel, 1 = FM, 2 = Electron ID,
+    // 3 = dE/dx ... (add 2 and 3 for N-1 style dE/dx, angle and gap plots).
+    // Each stage adds kNVar * kNSel spectra, so runtime grows accordingly.
+    // Output goes to selection_<suffix>/; the existing selection/ dir is untouched.
+    // -------------------------------------------------------------------------
+    const std::vector<unsigned int> kStackStageIdx = {0, 1};
+    const unsigned int kNStage = kStackStageIdx.size();
+    std::vector<std::vector<std::vector<Spectrum*>>> spectra_Stage(
+        kNStage, std::vector<std::vector<Spectrum*>>(kNVar, std::vector<Spectrum*>(kNSel, nullptr)));
+
+    for (unsigned int iStage = 0; iStage < kNStage; ++iStage) {
+        const SelDef& stage = SelectionSteps_NoTrigger[kStackStageIdx[iStage]];
+        for (unsigned int iVar = 0; iVar < kNVar; ++iVar)
+            for (unsigned int jSel = 0; jSel < kNSel; ++jSel)
+                spectra_Stage[iStage][iVar][jSel] = new Spectrum(SelectionPlots[iVar].label,
+                    SelectionPlots[iVar].bins, NuLoader, SelectionPlots[iVar].var,
+                    kNoSpillCut, stage.cut && InteractionTypes[jSel].cut);
+    }
+
+    // -------------------------------------------------------------------------
     // Ntuple - flat + per-PFP vector branches
     // -------------------------------------------------------------------------
     std::vector<std::string> branchNames;
@@ -475,6 +502,27 @@ void CC1e0piSelection_MakeAll()
     Tree ntuplePFP("ntuple_pfp", vecBranchNames, NuLoader, vecBranchVars,
                    kNoSpillCut, kNtuplePreSelection, kNoShift, true, true);
 
+    // all signal slices, NO preselection: explains why a true signal neutrino has no row in ntuple
+    std::vector<std::string> allSigNames = {"true_nu_index", "is_signal",
+                                            "slice_is_clear_cosmic", "pass_not_clear_cosmic",
+                                            "pass_vertex_fv", "pass_flash_match",
+                                            "reco_vtx_x", "reco_vtx_y", "reco_vtx_z", "reco_vtx_vs_truth"};
+    std::vector<Var> allSigVars = {kNtuple_TrueNuIndex, kNtuple_IsSignal,
+                                   kNtuple_SliceIsClearCosmic, kNtuple_PassNotClearCosmic,
+                                   kNtuple_PassVertexInFV, kNtuple_PassFlashMatch,
+                                   kNtuple_RecoVtxX, kNtuple_RecoVtxY, kNtuple_RecoVtxZ, kNtuple_RecoVtxVsTruth};
+    Tree ntupleAllSig("ntuple_allsig", allSigNames, NuLoader, allSigVars,
+                      kNoSpillCut, kTrueCC1e0pi, kNoShift, true, true);    
+
+    // event-level truth ntuple: one row per true CC1e0pi signal neutrino
+    // saveRunSubEvt=true writes Run/Subrun/Evt automatically (as for ntuple)
+    namespace T = CC1e0pi_TruthNtuple;
+    std::vector<std::string> truthNames = {"true_nu_index", "true_nu_energy",
+                                           "true_vtx_x", "true_vtx_y", "true_vtx_z",
+                                           "true_electron_ke", "true_n_vis_protons"};
+    std::vector<SpillMultiVar> truthVars = {T::kNuIdx, T::kNuE, T::kVtxX, T::kVtxY, T::kVtxZ,
+                                            T::kElecKE, T::kNVisP};
+    Tree ntupleTruth("ntuple_truth", truthNames, NuLoader, truthVars, kNoSpillCut, true);
     // -------------------------------------------------------------------------
     // Single Go() call — reads files once for everything
     // -------------------------------------------------------------------------
@@ -483,7 +531,9 @@ void CC1e0piSelection_MakeAll()
     gROOT->SetBatch(kTRUE);
     SetPrettyStyle();
 
-    TFile FOut("../output/root/CC1e0piSelection_All.root", "RECREATE");
+    // TFile FOut("../output/root/CC1e0piSelection_All_v10_06_00_06p03_pandoraonly.root", "RECREATE");
+    // TFile FOut("../output/root/CC1e0piSelection_All_v10_25_ext_pandoraonly.root", "RECREATE");
+    TFile FOut("../output/root/CC1e0piSelection_All_v10_06_00_04p04_ClaraAND_1114.root", "RECREATE"); //ran macro on the 18th Nov 2026 
 
     // =========================================================================
     // Efficiency outputs
@@ -563,6 +613,57 @@ void CC1e0piSelection_MakeAll()
     }
 
     // =========================================================================
+    // Cut-flow counts: raw MC slice counts after each cumulative step
+    // Reuses the "count" purity spectra, so no extra spectra are filled.
+    //   cutflow_<tag>_all     : all slices passing step i
+    //   cutflow_<tag>_signal  : signal slices (kTrueCC1e0pi) passing step i
+    //   cutflow_true_signal   : all true signal neutrinos in the spill (denominator)
+    // =========================================================================
+    TDirectory* cutflowDir = FOut.mkdir("cutflow");
+    int iCount = -1;
+    for (unsigned int iVar = 0; iVar < kNVar; ++iVar)
+        if (SelectionPlots[iVar].suffix == "count") { iCount = (int)iVar; break; }
+
+    if (iCount >= 0) {
+        auto writeCutflow = [&](const std::string& tag,
+                                const std::vector<SelDef>& steps,
+                                const std::vector<std::vector<Spectrum*>>& sAll,
+                                const std::vector<std::vector<Spectrum*>>& sSig)
+        {
+            const int n = (int)steps.size();
+            TH1D* hAll = new TH1D(("cutflow_" + tag + "_all").c_str(),    ";;Slices",        n, 0, n);
+            TH1D* hSig = new TH1D(("cutflow_" + tag + "_signal").c_str(), ";;Signal slices", n, 0, n);
+            hAll->SetDirectory(nullptr);
+            hSig->SetDirectory(nullptr);
+            for (int i = 0; i < n; ++i) {
+                TH1* a = sAll[iCount][i]->ToTH1(sAll[iCount][i]->POT());
+                TH1* g = sSig[iCount][i]->ToTH1(sSig[iCount][i]->POT());
+                hAll->SetBinContent(i + 1, a->GetEntries());
+                hAll->SetBinError  (i + 1, std::sqrt(a->GetEntries()));
+                hSig->SetBinContent(i + 1, g->GetEntries());
+                hSig->SetBinError  (i + 1, std::sqrt(g->GetEntries()));
+                hAll->GetXaxis()->SetBinLabel(i + 1, steps[i].label.c_str());
+                hSig->GetXaxis()->SetBinLabel(i + 1, steps[i].label.c_str());
+            }
+            cutflowDir->cd();
+            hAll->Write();
+            hSig->Write();
+        };
+        writeCutflow("trigger",   SelectionSteps,           spectra_AllTrig,   spectra_SignalTrig);
+        writeCutflow("notrigger", SelectionSteps_NoTrigger, spectra_AllNoTrig, spectra_SignalNoTrig);
+
+        TH1D* hTrueN = new TH1D("cutflow_true_signal", ";;True signal neutrinos", 1, 0, 1);
+        hTrueN->SetDirectory(nullptr);
+        hTrueN->SetBinContent(1, hTrue->GetEntries());
+        hTrueN->SetBinError  (1, std::sqrt(hTrue->GetEntries()));
+        cutflowDir->cd();
+        hTrueN->Write();
+    } else {
+        std::cerr << "Warning: no 'count' plot in SelectionPlots, cutflow/ not written" << std::endl;
+    }
+    FOut.cd();
+
+    // =========================================================================
     // Selection outputs
     // =========================================================================
     TDirectory* selectionDir = FOut.mkdir("selection");
@@ -574,9 +675,27 @@ void CC1e0piSelection_MakeAll()
         DrawSelectionPlot(SelectionPlots[iVar], spectra_Selection[iVar], viridisCols, selectionDir);
     }
 
+    // pre-cut stage stacks: selection_presel/, selection_flash/, ...
+    for (unsigned int iStage = 0; iStage < kNStage; ++iStage) {
+        const SelDef& stage = SelectionSteps_NoTrigger[kStackStageIdx[iStage]];
+        TDirectory* stageDir = FOut.mkdir(("selection_" + stage.suffix).c_str());
+        for (unsigned int iVar = 0; iVar < kNVar; ++iVar) {
+            stageDir->cd();
+            DrawSelectionPlot(SelectionPlots[iVar], spectra_Stage[iStage][iVar], viridisCols,
+                              stageDir, "BNB CV, " + stage.label);
+        }
+    }
+
     // =========================================================================
     // Ntuple output
     // =========================================================================
+    
+    TDirectory* ntupleTruthDir = FOut.mkdir("ntuple_truth");
+    ntupleTruth.SaveTo(ntupleTruthDir);
+    
+    TDirectory* ntupleAllSigDir = FOut.mkdir("ntuple_allsig");
+    ntupleAllSig.SaveTo(ntupleAllSigDir);
+    
     TDirectory* ntupleDir = FOut.mkdir("ntuple");
     ntuple.SaveTo(ntupleDir);
 
