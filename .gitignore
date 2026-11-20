@@ -5,3 +5,13 @@ src/*.pcm
 output/
 .DS_Store
 *.swp
+
+# local run products
+*.db
+*.log
+*.root
+input/
+batch_*/
+src/batches/
+eventViewer/
+.ipynb_checkpoints/
